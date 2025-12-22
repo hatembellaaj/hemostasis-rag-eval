@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+
+# Streamlit
+.streamlit/
+
+# Env / secrets
+.env
+*.key
+*.pem
+
+# Data & artifacts
+data/papers/*
+data/registry/*
+!data/papers/.gitkeep
+!data/registry/.gitkeep
+
+artifacts/*
+!artifacts/.gitkeep
+
+chroma_db/*
+!chroma_db/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
