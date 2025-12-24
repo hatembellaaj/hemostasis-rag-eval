@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  app_a:
+    build: .
+    container_name: hemostasis_app_a
+    command: streamlit run apps/a_ingestion_lab.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    env_file: .env
+    volumes:
+      - ./:/app
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./chroma_db:/app/chroma_db
+
+  app_b:
+    build: .
+    container_name: hemostasis_app_b
+    command: streamlit run apps/b_rag_lab.py --server.port=8502 --server.address=0.0.0.0
+    ports:
+      - "8502:8502"
+    env_file: .env
+    volumes:
+      - ./:/app
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./chroma_db:/app/chroma_db
+
+  dashboard:
+    build: .
+    container_name: hemostasis_dashboard
+    command: streamlit run apps/dashboard.py --server.port=8503 --server.address=0.0.0.0
+    ports:
+      - "8503:8503"
+    env_file: .env
+    volumes:
+      - ./:/app
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./chroma_db:/app/chroma_db

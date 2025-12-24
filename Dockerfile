@@ -1,0 +1,23 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+ENV PYTHONPATH=/app
+
+# deps système minimales (pypdf n'a pas besoin de poppler)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+  && rm -rf /var/lib/apt/lists/*
+
+# install python deps
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# copy project
+COPY . /app
+
+# streamlit ports
+EXPOSE 8501 8502 8503
+
+# default command (compose override it)
+CMD ["bash", "-lc", "streamlit run apps/a_ingestion_lab.py --server.port=8501 --server.address=0.0.0.0"]
