@@ -104,12 +104,20 @@ def _node_rows_to_docs(state: IndexState) -> IndexState:
 
 
 def _node_chunk(state: IndexState) -> IndexState:
+    settings = state.get("settings")
+    embedding_model = (
+        settings.get("embedding_model")
+        if isinstance(settings, dict)
+        else getattr(settings, "embedding_model", None)
+    )
+
     chunks = make_chunks(
         docs=state.get("docs") or [],
         split_mode=state["split_mode"],
         chunk_mode=state["chunk_mode"],
         chunk_size=int(state["chunk_size"]),
         chunk_overlap=int(state["chunk_overlap"]),
+        embedding_model=embedding_model,
         do_clean=True,
     )
     st = dict(state["stats"])

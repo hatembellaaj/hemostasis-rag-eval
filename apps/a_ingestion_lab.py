@@ -46,7 +46,7 @@ with left:
     st.subheader("Ingestion variant")
     # For Part A comparison: split/chunk knobs here
     split_mode = st.selectbox("split_mode", ["page", "heading"], index=0)
-    chunk_mode = st.selectbox("chunk_mode", ["fixed", "structure"], index=0)
+    chunk_mode = st.selectbox("chunk_mode", ["fixed", "structure", "semantic"], index=0)
     chunk_size = st.slider("chunk_size", 300, 2000, 1000, step=50)
     chunk_overlap = st.slider("chunk_overlap", 0, 400, 200, step=20)
 
