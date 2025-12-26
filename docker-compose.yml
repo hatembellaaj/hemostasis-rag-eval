@@ -39,3 +39,16 @@ services:
       - ./data:/app/data
       - ./artifacts:/app/artifacts
       - ./chroma_db:/app/chroma_db
+
+  embedding_viz:
+    build: .
+    container_name: hemostasis_embedding_viz
+    command: streamlit run apps/embedding_viz.py --server.port=8504 --server.address=0.0.0.0
+    ports:
+      - "8504:8504"
+    env_file: .env
+    volumes:
+      - ./:/app
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./chroma_db:/app/chroma_db

@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY . /app
 
 # streamlit ports
-EXPOSE 8501 8502 8503
+EXPOSE 8501 8502 8503 8504
 
 # default command (compose override it)
 CMD ["bash", "-lc", "streamlit run apps/a_ingestion_lab.py --server.port=8501 --server.address=0.0.0.0"]

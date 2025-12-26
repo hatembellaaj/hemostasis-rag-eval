@@ -58,6 +58,24 @@ Sur la page "Visualiser les embeddings" :
 - sélectionne la méthode (PCA/UMAP), un éventuel filtre JSON (`where`), un `size_by` et une limite,
 - clique sur **Générer la visualisation** pour produire et pré-visualiser le PNG, ou ouvrir un PNG existant depuis `artifacts/viz/`.
 
+### Utilisation via Docker / Docker Compose
+
+La visualisation est incluse dans l'image Docker :
+
+```bash
+# construire l'image (si nécessaire)
+docker compose build
+
+# lancer uniquement la page Streamlit de visualisation (http://localhost:8504)
+docker compose up embedding_viz
+
+# (optionnel) générer un PNG en ligne de commande depuis le conteneur
+docker compose run --rm embedding_viz \
+  python -m services.embedding_viz <index_run_id> --method umap --limit 2000
+```
+
+Les volumes `data/`, `artifacts/` et `chroma_db/` sont montés dans le conteneur, donc les PNG sont sauvegardés dans `artifacts/viz/` sur l'hôte.
+
 ---
 
 ## 2) Prérequis
