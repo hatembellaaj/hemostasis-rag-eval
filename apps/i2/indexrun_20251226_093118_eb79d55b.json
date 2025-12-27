@@ -1,0 +1,11 @@
+{
+  "created_at": "2025-12-26T09:31:18",
+  "index_run_id": "indexrun_20251226_093118_eb79d55b",
+  "n_chunks": 502,
+  "len_min": 75,
+  "len_mean": 847,
+  "len_max": 1000,
+  "empty_rate_lt_50": 0.0,
+  "dup_rate_exact": 0.0,
+  "country_tag_rate": 0.0757
+}
