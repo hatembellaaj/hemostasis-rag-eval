@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+from functools import lru_cache
 from typing import Any, Dict, List, Optional, TypedDict
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -8,8 +8,16 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langgraph.graph import StateGraph, END
 
+from services.bm25_index import build_or_load_bm25_index
 from services.storage import Settings, ensure_dirs, new_id, now_iso, write_json
-from services.retrieval import retrieve, build_filter
+from services.retrieval import (
+    DenseRetriever,
+    SparseBM25Retriever,
+    build_filter,
+    hybrid_retrieve,
+    load_chunk_documents,
+    retrieve,
+)
 from services.rerank import similarity_with_scores, apply_threshold
 from services.prompts import SYSTEM_RAG_STRICT, PROTOCOL_TEMPLATE, build_user_prompt
 from services.verify import rule_based_verify
@@ -25,6 +33,7 @@ class RAGState(TypedDict, total=False):
     disease: Optional[str]     # "Hemophilia" / "VWD" or None
 
     search_type: str           # "similarity" | "mmr"
+    retrieval_mode: str        # "dense" | "sparse" | "hybrid"
     k: int
     fetch_k: int
     rerank: bool
@@ -65,8 +74,20 @@ def _get_vs(settings: Settings) -> Chroma:
     )
 
 
+@lru_cache(maxsize=4)
+def _get_bm25_index(index_path: str, chunks_glob: str, text_field: str) -> Any:
+    return build_or_load_bm25_index(index_path=index_path, chunks_glob=chunks_glob, text_field=text_field)
+
+
+@lru_cache(maxsize=4)
+def _get_chunk_lookup(chunks_glob: str, text_field: str) -> Dict[str, Document]:
+    return load_chunk_documents(chunks_glob=chunks_glob, text_field=text_field)
+
+
 def _node_retrieve(state: RAGState) -> RAGState:
     vs = _get_vs(state["settings"])
+    retrieval_mode = state.get("retrieval_mode", "dense")
+    text_field = state.get("text_field", "text")
     where = None
 
     # Single-country setting: if country=Tunisia, we filter only registry evidence by country
@@ -77,7 +98,64 @@ def _node_retrieve(state: RAGState) -> RAGState:
     if state.get("disease"):
         where = {"disease": state["disease"]}
 
-    # Retrieve candidates
+    # dense-only path retains existing behaviour
+    if retrieval_mode == "dense":
+        docs = retrieve(
+            vs=vs,
+            query=state["question"],
+            search_type=state["search_type"],  # type: ignore
+            k=int(state["k"]),
+            fetch_k=int(state["fetch_k"]),
+            where=where,
+        )
+        return {**state, "candidates": docs}
+
+    chunks_glob = str(state["settings"].artifacts_dir / "chunks" / "*.jsonl")
+    index_path = str(state["settings"].artifacts_dir / "bm25_index.pkl")
+    sparse_retriever = SparseBM25Retriever(
+        bm25_index=_get_bm25_index(index_path=index_path, chunks_glob=chunks_glob, text_field=text_field)
+    )
+    chunk_lookup = _get_chunk_lookup(chunks_glob=chunks_glob, text_field=text_field)
+
+    if retrieval_mode == "sparse":
+        results = sparse_retriever.retrieve(state["question"], top_k=int(state["k"]))
+        docs: List[Document] = []
+        for r in results:
+            doc = chunk_lookup.get(r.get("chunk_id"))
+            if not doc:
+                continue
+            md = dict(doc.metadata or {})
+            md["score_sparse"] = r.get("score_sparse")
+            md["chunk_id"] = md.get("chunk_id") or r.get("chunk_id")
+            docs.append(Document(page_content=doc.page_content, metadata=md))
+        return {**state, "candidates": docs}
+
+    if retrieval_mode == "hybrid":
+        dense_retriever = DenseRetriever(vs=vs, search_type=state.get("search_type", "similarity"))
+        hybrid_results = hybrid_retrieve(
+            query=state["question"],
+            dense_retriever=dense_retriever,
+            sparse_retriever=sparse_retriever,
+            k_dense=int(state["fetch_k"]),
+            k_sparse=int(state["fetch_k"]),
+            k_final=int(state["k"]),
+            alpha=0.5,
+        )
+
+        docs: List[Document] = []
+        for r in hybrid_results:
+            doc = r.get("doc") or chunk_lookup.get(r.get("chunk_id"))
+            if not doc:
+                continue
+            md = dict(doc.metadata or {})
+            md["score_hybrid"] = r.get("score_hybrid")
+            md["score_dense"] = r.get("score_dense")
+            md["score_sparse"] = r.get("score_sparse")
+            md["chunk_id"] = md.get("chunk_id") or r.get("chunk_id")
+            docs.append(Document(page_content=doc.page_content, metadata=md))
+        return {**state, "candidates": docs}
+
+    # fallback to dense if an unknown mode is provided
     docs = retrieve(
         vs=vs,
         query=state["question"],
@@ -193,6 +271,7 @@ def _node_persist_run(state: RAGState) -> RAGState:
         "question": state.get("question"),
         "country": state.get("country"),
         "disease": state.get("disease"),
+        "retrieval_mode": state.get("retrieval_mode"),
         "search_type": state.get("search_type"),
         "k": state.get("k"),
         "fetch_k": state.get("fetch_k"),

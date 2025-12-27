@@ -27,6 +27,7 @@ with left:
 
     st.divider()
     st.subheader("RAG configuration")
+    retrieval_mode = st.selectbox("retrieval_mode", ["dense", "sparse", "hybrid"], index=0)
     search_type = st.selectbox("search_type", ["similarity", "mmr"], index=0)
     k = st.slider("top-k (k)", 1, 10, 4)
     fetch_k = st.slider("fetch_k", 4, 30, 12)
@@ -64,6 +65,7 @@ with right:
                 "question": question.strip(),
                 "country": country.strip() if country.strip() else None,
                 "disease": disease_val,
+                "retrieval_mode": retrieval_mode,
                 "search_type": search_type,
                 "k": int(k),
                 "fetch_k": int(fetch_k),
