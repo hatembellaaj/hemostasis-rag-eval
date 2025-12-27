@@ -292,11 +292,11 @@ def _node_persist_run(state: RAGState) -> RAGState:
 def build_rag_graph() -> Any:
     g = StateGraph(RAGState)
 
+    # Node names differ from state keys to avoid conflicts with langgraph state validation
     g.add_node("init", _node_init)
     g.add_node("retrieve", _node_retrieve)
-    # Node name differs from state key to avoid conflicts with langgraph state validation
     g.add_node("rerank_step", _node_rerank_and_threshold)
-    g.add_node("context", _node_build_context)
+    g.add_node("context_step", _node_build_context)
     g.add_node("generate", _node_generate)
     g.add_node("verify", _node_verify)
     g.add_node("retry", _node_retry)
@@ -305,8 +305,8 @@ def build_rag_graph() -> Any:
     g.set_entry_point("init")
     g.add_edge("init", "retrieve")
     g.add_edge("retrieve", "rerank_step")
-    g.add_edge("rerank_step", "context")
-    g.add_edge("context", "generate")
+    g.add_edge("rerank_step", "context_step")
+    g.add_edge("context_step", "generate")
     g.add_edge("generate", "verify")
 
     g.add_conditional_edges(
