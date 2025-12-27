@@ -294,7 +294,8 @@ def build_rag_graph() -> Any:
 
     g.add_node("init", _node_init)
     g.add_node("retrieve", _node_retrieve)
-    g.add_node("rerank", _node_rerank_and_threshold)
+    # Node name differs from state key to avoid conflicts with langgraph state validation
+    g.add_node("rerank_step", _node_rerank_and_threshold)
     g.add_node("context", _node_build_context)
     g.add_node("generate", _node_generate)
     g.add_node("verify", _node_verify)
@@ -303,8 +304,8 @@ def build_rag_graph() -> Any:
 
     g.set_entry_point("init")
     g.add_edge("init", "retrieve")
-    g.add_edge("retrieve", "rerank")
-    g.add_edge("rerank", "context")
+    g.add_edge("retrieve", "rerank_step")
+    g.add_edge("rerank_step", "context")
     g.add_edge("context", "generate")
     g.add_edge("generate", "verify")
 
