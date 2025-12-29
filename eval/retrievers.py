@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Protocol
 
+import numpy as np
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
@@ -15,6 +16,9 @@ from langchain_community.vectorstores.utils import maximal_marginal_relevance
 from services.bm25_index import BM25Index, build_or_load_bm25_index
 from services.retrieval import metadata_to_chunk_id
 from services.storage import Settings
+
+os.environ.setdefault("OTEL_SDK_DISABLED", "true")
+os.environ.setdefault("CHROMA_TELEMETRY_ENABLED", "false")
 
 
 @dataclass
@@ -83,9 +87,9 @@ def _apply_mmr(embedder: OpenAIEmbeddings, query: str, results: list[RetrievalRe
     if not results:
         return []
     texts = [r.doc.page_content for r in results]
-    doc_embeddings = embedder.embed_documents(texts)
-    query_embedding = embedder.embed_query(query)
-    if not doc_embeddings or not query_embedding:
+    doc_embeddings = np.asarray(embedder.embed_documents(texts))
+    query_embedding = np.asarray(embedder.embed_query(query))
+    if doc_embeddings.size == 0 or query_embedding.size == 0:
         return results[:k]
     mmr_indices = maximal_marginal_relevance(
         query_embedding,
@@ -104,7 +108,7 @@ class DenseRetriever:
     def retrieve(self, query: str, k: int, fetch_k: int) -> List[RetrievalResult]:
         if self.search_type == "mmr":
             retriever = self.chroma.as_retriever(search_type="mmr", search_kwargs={"k": k, "fetch_k": fetch_k})
-            docs = retriever.get_relevant_documents(query)
+            docs = retriever.invoke(query)
             return [RetrievalResult(doc=d, score=None, chunk_id=metadata_to_chunk_id(d.metadata)) for d in docs]
 
         docs_scores = self.chroma.similarity_search_with_score(query, k=k)
